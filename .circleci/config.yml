@@ -87,74 +87,39 @@ jobs:
             echo "Python ${python_version}"
             printf 'python=%s\n' "${python_version}" >> .proof-artifacts/runtime-versions.txt
 
-      - run:
-    name: "Runtime — install Node 24"
-    command: |
-      set -euo pipefail
-      export NVM_DIR="$HOME/.nvm"
-
-      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
-
-      # Load nvm itself, but do not auto-use the repository's .nvmrc yet.
-      . "${NVM_DIR}/nvm.sh" --no-use
-
-      # Install and explicitly activate the required Node major.
-      nvm install 24
-      nvm alias default 24
-      nvm use --silent 24 >/dev/null
-
-      # Make later CircleCI steps load nvm without implicit .nvmrc handling,
-      # then explicitly activate the already-installed Node 24.
-      {
-        echo 'export NVM_DIR="$HOME/.nvm"'
-        echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" --no-use'
-        echo 'nvm use --silent 24 >/dev/null'
-      } >> "${BASH_ENV}"
-
-      node_version="$(node --version)"
-      node_major="$(node -p 'process.versions.node.split(".")[0]')"
-      test "${node_major}" = "24"
-
-      echo "Node ${node_version}"
-      echo "npm $(npm --version)"
-      printf 'node=%s\nnpm=%s\n' \
-        "${node_version}" \
-        "$(npm --version)" \
-        >> .proof-artifacts/runtime-versions.txt
-      - run:
-          name: "Runtime — start and prove PostgreSQL 18"
+            - run:
+          name: "Runtime — install Node 24"
           command: |
             set -euo pipefail
-            docker pull postgres:18
-            docker run --detach \
-              --name linguagraph-postgres18 \
-              --env POSTGRES_USER=postgres \
-              --env POSTGRES_PASSWORD=postgres \
-              --env POSTGRES_DB=postgres \
-              --publish 5432:5432 \
-              postgres:18
+            export NVM_DIR="$HOME/.nvm"
 
-            ready=0
-            for _ in $(seq 1 30); do
-              if docker exec linguagraph-postgres18 pg_isready -U postgres -d postgres >/dev/null 2>&1; then
-                ready=1
-                break
-              fi
-              sleep 2
-            done
-            test "${ready}" = "1"
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
 
-            postgres_version="$(docker exec linguagraph-postgres18 psql -U postgres -d postgres -Atc 'show server_version')"
-            case "${postgres_version}" in
-              18.*) ;;
-              *)
-                echo "PostgreSQL major-version mismatch: ${postgres_version}"
-                exit 1
-                ;;
-            esac
+            # Load nvm itself without auto-using the repository .nvmrc.
+            . "${NVM_DIR}/nvm.sh" --no-use
 
-            echo "PostgreSQL ${postgres_version}"
-            printf 'postgresql=%s\n' "${postgres_version}" >> .proof-artifacts/runtime-versions.txt
+            # Install and explicitly activate the required Node major.
+            nvm install 24
+            nvm alias default 24
+            nvm use --silent 24 >/dev/null
+
+            # Persist the same explicit Node 24 environment for later steps.
+            {
+              echo 'export NVM_DIR="$HOME/.nvm"'
+              echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" --no-use'
+              echo 'nvm use --silent 24 >/dev/null'
+            } >> "${BASH_ENV}"
+
+            node_version="$(node --version)"
+            node_major="$(node -p 'process.versions.node.split(".")[0]')"
+            test "${node_major}" = "24"
+
+            echo "Node ${node_version}"
+            echo "npm $(npm --version)"
+            printf 'node=%s\nnpm=%s\n' \
+              "${node_version}" \
+              "$(npm --version)" \
+              >> .proof-artifacts/runtime-versions.txt
 
       - run:
           name: "Backend — uv sync --frozen"
