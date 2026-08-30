@@ -87,7 +87,7 @@ jobs:
             echo "Python ${python_version}"
             printf 'python=%s\n' "${python_version}" >> .proof-artifacts/runtime-versions.txt
 
-            - run:
+      - run:
           name: "Runtime — install Node 24"
           command: |
             set -euo pipefail
