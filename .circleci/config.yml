@@ -120,6 +120,40 @@ jobs:
               "${node_version}" \
               "$(npm --version)" \
               >> .proof-artifacts/runtime-versions.txt
+      - run:
+          name: "Runtime — start and prove PostgreSQL 18"
+          command: |
+            set -euo pipefail
+            docker pull postgres:18
+            docker run --detach \
+              --name linguagraph-postgres18 \
+              --env POSTGRES_USER=postgres \
+              --env POSTGRES_PASSWORD=postgres \
+              --env POSTGRES_DB=postgres \
+              --publish 5432:5432 \
+              postgres:18
+
+            ready=0
+            for _ in $(seq 1 30); do
+              if docker exec linguagraph-postgres18 pg_isready -U postgres -d postgres >/dev/null 2>&1; then
+                ready=1
+                break
+              fi
+              sleep 2
+            done
+            test "${ready}" = "1"
+
+            postgres_version="$(docker exec linguagraph-postgres18 psql -U postgres -d postgres -Atc 'show server_version')"
+            case "${postgres_version}" in
+              18.*) ;;
+              *)
+                echo "PostgreSQL major-version mismatch: ${postgres_version}"
+                exit 1
+                ;;
+            esac
+
+            echo "PostgreSQL ${postgres_version}"
+            printf 'postgresql=%s\n' "${postgres_version}" >> .proof-artifacts/runtime-versions.txt
 
       - run:
           name: "Backend — uv sync --frozen"
